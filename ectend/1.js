@@ -57,9 +57,7 @@ const noteInput = document.getElementById("noteInput");
 const notesDisplay = document.getElementById("notesDisplay");
 
 // Get the server URL based on environment
-const serverUrl = window.location.hostname === 'localhost' 
-  ? 'http://localhost:3000'
-  : 'https://couple-k9l8.onrender.com';
+const serverUrl = window.location.origin;
 
 async function addNote() {
   const note = noteInput.value.trim();

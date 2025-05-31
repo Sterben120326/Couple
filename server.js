@@ -7,18 +7,22 @@ const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 10000;
+const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({
-    origin: '*'
-}));
+app.use(cors());
 app.use(express.json());
 
 // Serve static files
-app.use(express.static(path.join(__dirname)));
+app.use('/', express.static(__dirname));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/ectend', express.static(path.join(__dirname, 'ectend')));
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // MongoDB connection
 const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/couples-website';
@@ -45,11 +49,7 @@ const VoiceMail = mongoose.model('VoiceMail', {
 // Storage configuration for voice mails
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadDir = path.join(__dirname, 'public', 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
+        cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
         cb(null, Date.now() + path.extname(file.originalname));
@@ -126,7 +126,7 @@ app.delete('/api/voicemails/:id', async (req, res) => {
         }
 
         // Delete the file
-        const filePath = path.join(__dirname, 'public', 'uploads', voiceMail.filename);
+        const filePath = path.join(uploadsDir, voiceMail.filename);
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
         }
