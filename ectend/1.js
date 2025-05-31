@@ -251,3 +251,11 @@ function openMusicPage() {
   document.getElementById("musicPage").style.display = "block";
   document.getElementById("timer").style.display = "none";
 }
+
+// Voice Mail Page
+function openVoicePage() {
+  document.getElementById("home").style.display = "none";
+  document.getElementById("voicePage").style.display = "block";
+  document.getElementById("timer").style.display = "none";
+  loadVoices();
+}
