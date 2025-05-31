@@ -56,15 +56,17 @@ function goToHome() {
 const noteInput = document.getElementById("noteInput");
 const notesDisplay = document.getElementById("notesDisplay");
 
-// Get the server URL dynamically
-const serverUrl = window.location.protocol + '//' + window.location.hostname + ':3000';
+// Get the server URL based on environment
+const serverUrl = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3000'
+  : 'https://couple-k9l8.onrender.com';
 
 async function addNote() {
   const note = noteInput.value.trim();
   if (note.length === 0) return;
 
   try {
-    const response = await fetch(serverUrl + '/api/notes', {
+    const response = await fetch(`${serverUrl}/api/notes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -99,7 +101,7 @@ async function deleteNote(id) {
 
 async function loadNotes() {
   try {
-    const response = await fetch(serverUrl + '/api/notes');
+    const response = await fetch(`${serverUrl}/api/notes`);
     if (!response.ok) throw new Error('Failed to fetch notes');
     
     const notes = await response.json();
@@ -170,7 +172,7 @@ async function saveVoice(audioBlob) {
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.mp3');
 
-    const response = await fetch(serverUrl + '/api/voicemails', {
+    const response = await fetch(`${serverUrl}/api/voicemails`, {
       method: 'POST',
       body: formData
     });
@@ -186,7 +188,7 @@ async function saveVoice(audioBlob) {
 
 async function loadVoices() {
   try {
-    const response = await fetch(serverUrl + '/api/voicemails');
+    const response = await fetch(`${serverUrl}/api/voicemails`);
     if (!response.ok) throw new Error('Failed to fetch voice mails');
     
     const voiceMails = await response.json();
@@ -195,7 +197,7 @@ async function loadVoices() {
     voiceMails.forEach(vm => {
       const audio = document.createElement("audio");
       audio.controls = true;
-      audio.src = serverUrl + '/public/uploads/' + vm.filename;
+      audio.src = `${serverUrl}/public/uploads/${vm.filename}`;
 
       const deleteButton = document.createElement("button");
       deleteButton.innerText = "Delete this voice mail";
