@@ -124,51 +124,72 @@ async function loadNotes() {
 // Voice Mail
 let mediaRecorder;
 let audioChunks = [];
+let stream;
 
 const recordButton = document.getElementById("recordButton");
 const stopButton = document.getElementById("stopButton");
 const voiceList = document.getElementById("voiceList");
 
-recordButton.addEventListener("click", startRecording);
-stopButton.addEventListener("click", stopRecording);
+async function startRecording() {
+  try {
+    // Request both microphone and audio capture permissions
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 44100
+      }
+    });
 
-function openVoicePage() {
-  document.getElementById("home").style.display = "none";
-  document.getElementById("voicePage").style.display = "block";
-  document.getElementById("timer").style.display = "none";
-  loadVoices();
-}
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: 'audio/webm;codecs=opus'
+    });
 
-function startRecording() {
-  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.start();
     audioChunks = [];
+    mediaRecorder.start();
 
     mediaRecorder.addEventListener("dataavailable", event => {
       audioChunks.push(event.data);
     });
 
     mediaRecorder.addEventListener("stop", async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+      // Stop all tracks to release the microphone
+      stream.getTracks().forEach(track => track.stop());
+      
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       await saveVoice(audioBlob);
     });
 
     recordButton.style.display = "none";
     stopButton.style.display = "inline-block";
-  });
+  } catch (error) {
+    console.error('Error starting recording:', error);
+    alert('Could not access microphone. Please make sure you have granted microphone permissions.');
+  }
 }
 
 function stopRecording() {
-  mediaRecorder.stop();
-  recordButton.style.display = "inline-block";
-  stopButton.style.display = "none";
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    recordButton.style.display = "inline-block";
+    stopButton.style.display = "none";
+  }
 }
+
+// Update event listeners
+recordButton.addEventListener("click", () => {
+  startRecording().catch(error => {
+    console.error('Error in startRecording:', error);
+    alert('Failed to start recording. Please check your microphone permissions.');
+  });
+});
+
+stopButton.addEventListener("click", stopRecording);
 
 async function saveVoice(audioBlob) {
   try {
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.mp3');
+    formData.append('audio', audioBlob, 'recording.webm');
 
     const response = await fetch(`${serverUrl}/api/voicemails`, {
       method: 'POST',

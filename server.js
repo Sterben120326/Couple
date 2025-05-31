@@ -52,11 +52,25 @@ const storage = multer.diskStorage({
         cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
+        // Ensure we keep the .webm extension
+        cb(null, `${Date.now()}.webm`);
     }
 });
 
-const upload = multer({ storage });
+const upload = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        // Accept only audio files
+        if (file.mimetype.startsWith('audio/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only audio files are allowed'));
+        }
+    },
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB max file size
+    }
+});
 
 // Routes
 app.get('/', (req, res) => {

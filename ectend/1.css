@@ -2,7 +2,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #ffe0f0, #ffffff);
+  background: linear-gradient(135deg, #7DCBFC, #E8F6FF);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -33,7 +33,7 @@ body {
 button {
   padding: 10px 20px;
   font-size: 1em;
-  background-color: #ff69b4;
+  background-color: #7DCBFC;
   border: none;
   border-radius: 8px;
   color: white;
@@ -42,7 +42,7 @@ button {
 }
 
 button:hover {
-  background-color: #ff85c1;
+  background-color: #55B6F0;
 }
 
 .back-button {
@@ -51,7 +51,7 @@ button:hover {
   left: 20px;
   padding: 6px 10px;
   font-size: 0.85em;
-  background-color: #ffa4c5;
+  background-color: #9BD5FC;
 }
 
 .intro-screen {
@@ -61,7 +61,7 @@ button:hover {
 .hover-menu {
   display: flex;
   justify-content: space-around;
-  background-color: #ffe0f0;
+  background-color: #BFE4FD;
   border-radius: 10px;
   padding: 10px;
   margin-bottom: 20px;
@@ -78,7 +78,8 @@ button:hover {
 }
 
 .menu-item:hover {
-  background-color: #ffc2dc;
+  background-color: #7DCBFC;
+  color: white;
 }
 
 .content {
@@ -90,7 +91,7 @@ button:hover {
   bottom: 15px;
   right: 20px;
   font-size: 0.85em;
-  background-color: #ffe0f0;
+  background-color: #BFE4FD;
   padding: 6px 10px;
   border-radius: 8px;
 }
@@ -114,14 +115,14 @@ button:hover {
 }
 
 #notesDisplay {
-  background-color: #ffe0f0;
+  background-color: #BFE4FD;
   border-radius: 10px;
   padding: 10px;
   max-height: 250px;
   overflow-y: auto;
   font-size: 0.9em;
   white-space: pre-wrap;
-  border: 1px solid #ffb6d5;
+  border: 1px solid #7DCBFC;
   margin-top: 10px;
 }
 
@@ -129,7 +130,7 @@ button:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff0f5;
+  background: #E8F6FF;
   padding: 4px 4px;
   border-radius: 6px;
   margin-bottom: 4px;
@@ -150,7 +151,7 @@ button:hover {
   box-sizing: border-box;
   animation: marquee 15s linear infinite;
   font-size: 1em;
-  color: #ff69b4;
+  color: #7DCBFC;
   margin-top: 80px;
   max-width: 100%; /* keep inside container */
 }
