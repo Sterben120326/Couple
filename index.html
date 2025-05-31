@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Wife's Profile</title>
+  <link rel="stylesheet" href="ectend/1.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="profile-card">
+      <div class="intro-screen" id="introScreen">
+        <h1>Welcome, My Love</h1>
+        <button onclick="openWebsite()">Open Website</button>
+        <div class="marquee">Love always remember I love you po always ❤️</div>
+      </div>
+
+      <div class="home" id="home" style="display: none;">
+        <button class="back-button" onclick="goBack()">← Back</button>
+
+        <div class="hover-menu">
+          <div class="menu-item" onclick="openLetterPage()">Notes</div>
+          <div class="menu-item" onclick="openVoicePage()">Voice Mail</div>
+          <div class="menu-item" onclick="openMusicPage()">Music</div>
+        </div>
+
+        <div class="content">
+          <h2>Home Page</h2>
+          <p>This site is just for us!! ❤️</p>
+          <div class="marquee">Ung oras po sa baba is time ng pag alis mo dito.</div>
+        </div>
+
+        <div class="timer" id="timer" style="display: none;"></div>
+      </div>
+
+      <div class="letter-page" id="letterPage" style="display: none;">
+        <button class="back-button" onclick="goToHome()">← Back</button>
+        <h2>Notes (saved locally)</h2>
+        <textarea id="noteInput" placeholder="Write your note here..."></textarea>
+        <button onclick="addNote()">Add Note</button>
+        <div id="notesDisplay"></div>
+      </div>
+
+      <div class="voice-page" id="voicePage" style="display: none;">
+        <button class="back-button" onclick="goToHome()">← Back</button>
+        <h2>Voice Mails</h2>
+        <div>
+          <button id="recordButton">Start Recording</button>
+          <button id="stopButton" style="display: none;">Stop</button>
+        </div>
+        <div id="voiceList"></div>
+      </div>
+
+      <div class="music-page" id="musicPage" style="display: none;">
+        <button class="back-button" onclick="goToHome()">← Back</button>
+        <h2>Our Favorite Music</h2>
+        <audio controls src="ectend/Sagip - Jan Roberts (Lyric Visualizer).mp3"></audio>
+        <audio controls src="ectend/Sponge Cola - Tuliro (Official Lyric Video).mp3"></audio>
+        <audio controls src="ectend/Ang Huling El Bimbo.mp3"></audio>
+        <audio controls src="ectend/Synesthesia (Live at The Cozy Cove) -Mayonnaise.mp3"></audio>
+        <audio controls src="ectend/Ride Home.mp3"></audio>
+      </div>
+    </div>
+  </div>
+  <script src="ectend/1.js"></script>
+</body>
+</html>
