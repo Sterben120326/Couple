@@ -3,8 +3,6 @@ const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsCommand } = require('@aws-sdk/client-s3');
-require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -18,21 +16,29 @@ app.use('/', express.static(__dirname));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/ectend', express.static(path.join(__dirname, 'ectend')));
 
-// Configure S3 client for render.com storage
-const s3Client = new S3Client({
-    region: 'us-east-1',
-    credentials: {
-        accessKeyId: process.env.RENDER_ACCESS_KEY || 'default',
-        secretAccessKey: process.env.RENDER_SECRET_KEY || 'default'
+// Create uploads directory in the app directory
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// File to store voice mail metadata
+const voiceMailsFile = path.join(__dirname, 'voicemails.json');
+if (!fs.existsSync(voiceMailsFile)) {
+    fs.writeFileSync(voiceMailsFile, '[]');
+}
+
+// Storage configuration for voice mails
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadsDir);
     },
-    endpoint: process.env.RENDER_S3_ENDPOINT || 'https://s3.render.com',
-    forcePathStyle: true
+    filename: (req, file, cb) => {
+        const filename = `${Date.now()}.webm`;
+        cb(null, filename);
+    }
 });
 
-const bucketName = process.env.RENDER_BUCKET_NAME || 'voice-mails';
-
-// Configure multer for memory storage
-const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     fileFilter: (req, file, cb) => {
@@ -43,63 +49,67 @@ const upload = multer({
         }
     },
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB max file size
+        fileSize: 5 * 1024 * 1024 // Reduced to 5MB max file size
     }
 });
 
-// Helper functions for S3 storage
-async function uploadToS3(buffer, filename) {
+// Helper functions for voice mail data
+function getVoiceMails() {
     try {
-        await s3Client.send(new PutObjectCommand({
-            Bucket: bucketName,
-            Key: filename,
-            Body: buffer,
-            ContentType: 'audio/webm'
-        }));
-        return `${process.env.RENDER_S3_ENDPOINT}/${bucketName}/${filename}`;
+        if (fs.existsSync(voiceMailsFile)) {
+            const data = fs.readFileSync(voiceMailsFile, 'utf8');
+            return JSON.parse(data);
+        }
+        return [];
     } catch (error) {
-        console.error('Error uploading to S3:', error);
+        console.error('Error reading voice mails:', error);
+        return [];
+    }
+}
+
+function saveVoiceMails(voiceMails) {
+    try {
+        fs.writeFileSync(voiceMailsFile, JSON.stringify(voiceMails, null, 2));
+    } catch (error) {
+        console.error('Error saving voice mails:', error);
         throw error;
     }
 }
 
-async function deleteFromS3(filename) {
-    try {
-        await s3Client.send(new DeleteObjectCommand({
-            Bucket: bucketName,
-            Key: filename
-        }));
-    } catch (error) {
-        console.error('Error deleting from S3:', error);
-        throw error;
-    }
-}
-
-// Store voice mail metadata in memory (will persist as long as the server is running)
-let voiceMails = [];
+// Serve uploaded files
+app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.post('/api/voicemails', upload.single('audio'), async (req, res) => {
+app.post('/api/voicemails', upload.single('audio'), (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No audio file uploaded' });
         }
 
-        const filename = `${Date.now()}.webm`;
-        const url = await uploadToS3(req.file.buffer, filename);
-
+        const voiceMails = getVoiceMails();
         const voiceMail = {
             id: Date.now().toString(),
-            filename: filename,
-            url: url,
+            filename: req.file.filename,
+            url: `/uploads/${req.file.filename}`,
             timestamp: new Date().toISOString()
         };
 
+        // Keep only the last 10 voice mails to manage storage
+        if (voiceMails.length >= 10) {
+            const oldestVoiceMail = voiceMails[0];
+            const oldFilePath = path.join(uploadsDir, oldestVoiceMail.filename);
+            if (fs.existsSync(oldFilePath)) {
+                fs.unlinkSync(oldFilePath);
+            }
+            voiceMails.shift();
+        }
+
         voiceMails.push(voiceMail);
+        saveVoiceMails(voiceMails);
         res.json(voiceMail);
     } catch (error) {
         console.error('Error saving voice mail:', error);
@@ -109,6 +119,7 @@ app.post('/api/voicemails', upload.single('audio'), async (req, res) => {
 
 app.get('/api/voicemails', (req, res) => {
     try {
+        const voiceMails = getVoiceMails();
         res.json(voiceMails);
     } catch (error) {
         console.error('Error fetching voice mails:', error);
@@ -116,19 +127,24 @@ app.get('/api/voicemails', (req, res) => {
     }
 });
 
-app.delete('/api/voicemails/:id', async (req, res) => {
+app.delete('/api/voicemails/:id', (req, res) => {
     try {
+        const voiceMails = getVoiceMails();
         const voiceMail = voiceMails.find(vm => vm.id === req.params.id);
 
         if (!voiceMail) {
             return res.status(404).json({ error: 'Voice mail not found' });
         }
 
-        // Delete from S3
-        await deleteFromS3(voiceMail.filename);
+        // Delete the file
+        const filePath = path.join(uploadsDir, voiceMail.filename);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
 
         // Update the voice mails list
-        voiceMails = voiceMails.filter(vm => vm.id !== req.params.id);
+        const updatedVoiceMails = voiceMails.filter(vm => vm.id !== req.params.id);
+        saveVoiceMails(updatedVoiceMails);
         res.json({ message: 'Voice mail deleted successfully' });
     } catch (error) {
         console.error('Error deleting voice mail:', error);

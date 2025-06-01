@@ -7,8 +7,4 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-    autoDeploy: true
-    disk:
-      name: voice-mails
-      mountPath: /tmp/voice-mails
-      sizeGB: 1 
+    autoDeploy: true 
