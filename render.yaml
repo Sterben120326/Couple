@@ -2,9 +2,13 @@ services:
   - type: web
     name: couple
     env: node
-    buildCommand: npm install
+    buildCommand: npm ci --production
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
-    autoDeploy: true 
+    autoDeploy: true
+    disk:
+      name: voice-mails
+      mountPath: /tmp/voice-mails
+      sizeGB: 1 

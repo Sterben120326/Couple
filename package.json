@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "build": "npm install --production"
+    "build": "npm ci --production"
   },
   "dependencies": {
     "express": "^4.18.2",
