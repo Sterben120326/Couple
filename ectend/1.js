@@ -57,7 +57,7 @@ const noteInput = document.getElementById("noteInput");
 const notesDisplay = document.getElementById("notesDisplay");
 
 // Get the server URL based on environment
-const serverUrl = window.location.origin;
+const serverUrl = 'http://localhost:3000';
 
 async function addNote() {
   const note = noteInput.value.trim();
@@ -132,7 +132,6 @@ const voiceList = document.getElementById("voiceList");
 
 async function startRecording() {
   try {
-    // Request both microphone and audio capture permissions
     stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -153,11 +152,9 @@ async function startRecording() {
     });
 
     mediaRecorder.addEventListener("stop", async () => {
-      // Stop all tracks to release the microphone
       stream.getTracks().forEach(track => track.stop());
-      
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      await saveVoice(audioBlob);
+      saveVoice(audioBlob);
     });
 
     recordButton.style.display = "none";
@@ -176,7 +173,6 @@ function stopRecording() {
   }
 }
 
-// Update event listeners
 recordButton.addEventListener("click", () => {
   startRecording().catch(error => {
     console.error('Error in startRecording:', error);
@@ -206,42 +202,86 @@ async function saveVoice(audioBlob) {
 }
 
 async function loadVoices() {
+  voiceList.innerHTML = "";
+  
+  // Try to load voice mails from server first
   try {
     const response = await fetch(`${serverUrl}/api/voicemails`);
-    if (!response.ok) throw new Error('Failed to fetch voice mails');
-    
-    const voiceMails = await response.json();
-    voiceList.innerHTML = "";
-    
-    voiceMails.forEach(vm => {
-      const audio = document.createElement("audio");
-      audio.controls = true;
-      audio.src = `${serverUrl}/public/uploads/${vm.filename}`;
-
-      const deleteButton = document.createElement("button");
-      deleteButton.innerText = "Delete this voice mail";
-      deleteButton.classList.add("delete-btn");
-      deleteButton.onclick = async () => {
-        try {
-          const response = await fetch(`${serverUrl}/api/voicemails/${vm._id}`, {
-            method: 'DELETE'
-          });
-          if (!response.ok) throw new Error('Failed to delete voice mail');
-          loadVoices();
-        } catch (error) {
-          console.error('Error deleting voice mail:', error);
-          alert('Failed to delete voice mail. Please try again.');
-        }
-      };
-
-      const container = document.createElement("div");
-      container.appendChild(audio);
-      container.appendChild(deleteButton);
-      voiceList.appendChild(container);
-    });
+    if (response.ok) {
+      const serverVoiceMails = await response.json();
+      
+      // Display server voice mails
+      serverVoiceMails.forEach(vm => {
+        const container = document.createElement("div");
+        container.className = "voice-mail-item";
+        
+        const dateStr = new Date(vm.timestamp || Date.now()).toLocaleString();
+        const label = document.createElement("p");
+        label.textContent = `Recording from ${dateStr} (Server)`;
+        
+        const audio = document.createElement("audio");
+        audio.controls = true;
+        audio.src = `${serverUrl}/public/uploads/${vm.filename}`;
+        
+        const deleteButton = document.createElement("button");
+        deleteButton.innerText = "Delete";
+        deleteButton.className = "delete-btn";
+        deleteButton.onclick = async () => {
+          try {
+            const response = await fetch(`${serverUrl}/api/voicemails/${vm._id}`, {
+              method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Failed to delete voice mail');
+            loadVoices();
+          } catch (error) {
+            console.error('Error deleting voice mail:', error);
+            alert('Failed to delete voice mail. Please try again.');
+          }
+        };
+        
+        container.appendChild(label);
+        container.appendChild(audio);
+        container.appendChild(deleteButton);
+        voiceList.appendChild(container);
+      });
+    }
   } catch (error) {
-    console.error('Error loading voice mails:', error);
-    voiceList.innerHTML = "<p>Failed to load voice mails. Please try again later.</p>";
+    console.error('Error loading server voice mails:', error);
+  }
+  
+  // Load local voice mails
+  const localVoiceMails = JSON.parse(localStorage.getItem('voiceMails') || '[]');
+  localVoiceMails.forEach(vm => {
+    const container = document.createElement("div");
+    container.className = "voice-mail-item";
+    
+    const dateStr = new Date(vm.timestamp).toLocaleString();
+    const label = document.createElement("p");
+    label.textContent = `Recording from ${dateStr} (Local)`;
+    
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.src = vm.audio;
+    
+    const deleteButton = document.createElement("button");
+    deleteButton.innerText = "Delete";
+    deleteButton.className = "delete-btn";
+    deleteButton.onclick = () => {
+      const voiceMails = JSON.parse(localStorage.getItem('voiceMails') || '[]');
+      const updatedMails = voiceMails.filter(mail => mail.id !== vm.id);
+      localStorage.setItem('voiceMails', JSON.stringify(updatedMails));
+      loadVoices();
+    };
+    
+    container.appendChild(label);
+    container.appendChild(audio);
+    container.appendChild(deleteButton);
+    voiceList.appendChild(container);
+  });
+  
+  // Show message if no voice mails found
+  if (voiceList.children.length === 0) {
+    voiceList.innerHTML = "<p>No voice mails found.</p>";
   }
 }
 

@@ -1,9 +1,9 @@
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
 const multer = require('multer');
+const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsCommand } = require('@aws-sdk/client-s3');
 require('dotenv').config();
 
 const app = express();
@@ -18,49 +18,24 @@ app.use('/', express.static(__dirname));
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/ectend', express.static(path.join(__dirname, 'ectend')));
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// MongoDB connection
-const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/couples-website';
-mongoose.connect(mongoUri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log('Connected to MongoDB');
-}).catch(err => {
-    console.error('MongoDB connection error:', err);
-});
-
-// Models
-const Note = mongoose.model('Note', {
-    content: String,
-    createdAt: { type: Date, default: Date.now }
-});
-
-const VoiceMail = mongoose.model('VoiceMail', {
-    filename: String,
-    createdAt: { type: Date, default: Date.now }
-});
-
-// Storage configuration for voice mails
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadsDir);
+// Configure S3 client for render.com storage
+const s3Client = new S3Client({
+    region: 'us-east-1',
+    credentials: {
+        accessKeyId: process.env.RENDER_ACCESS_KEY || 'default',
+        secretAccessKey: process.env.RENDER_SECRET_KEY || 'default'
     },
-    filename: (req, file, cb) => {
-        // Ensure we keep the .webm extension
-        cb(null, `${Date.now()}.webm`);
-    }
+    endpoint: process.env.RENDER_S3_ENDPOINT || 'https://s3.render.com',
+    forcePathStyle: true
 });
 
+const bucketName = process.env.RENDER_BUCKET_NAME || 'voice-mails';
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     fileFilter: (req, file, cb) => {
-        // Accept only audio files
         if (file.mimetype.startsWith('audio/')) {
             cb(null, true);
         } else {
@@ -72,40 +47,40 @@ const upload = multer({
     }
 });
 
+// Helper functions for S3 storage
+async function uploadToS3(buffer, filename) {
+    try {
+        await s3Client.send(new PutObjectCommand({
+            Bucket: bucketName,
+            Key: filename,
+            Body: buffer,
+            ContentType: 'audio/webm'
+        }));
+        return `${process.env.RENDER_S3_ENDPOINT}/${bucketName}/${filename}`;
+    } catch (error) {
+        console.error('Error uploading to S3:', error);
+        throw error;
+    }
+}
+
+async function deleteFromS3(filename) {
+    try {
+        await s3Client.send(new DeleteObjectCommand({
+            Bucket: bucketName,
+            Key: filename
+        }));
+    } catch (error) {
+        console.error('Error deleting from S3:', error);
+        throw error;
+    }
+}
+
+// Store voice mail metadata in memory (will persist as long as the server is running)
+let voiceMails = [];
+
 // Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.post('/api/notes', async (req, res) => {
-    try {
-        const note = new Note({ content: req.body.content });
-        await note.save();
-        res.json(note);
-    } catch (error) {
-        console.error('Error saving note:', error);
-        res.status(500).json({ error: 'Error saving note' });
-    }
-});
-
-app.get('/api/notes', async (req, res) => {
-    try {
-        const notes = await Note.find().sort({ createdAt: -1 });
-        res.json(notes);
-    } catch (error) {
-        console.error('Error fetching notes:', error);
-        res.status(500).json({ error: 'Error fetching notes' });
-    }
-});
-
-app.delete('/api/notes/:id', async (req, res) => {
-    try {
-        await Note.findByIdAndDelete(req.params.id);
-        res.json({ message: 'Note deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting note:', error);
-        res.status(500).json({ error: 'Error deleting note' });
-    }
 });
 
 app.post('/api/voicemails', upload.single('audio'), async (req, res) => {
@@ -113,8 +88,18 @@ app.post('/api/voicemails', upload.single('audio'), async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ error: 'No audio file uploaded' });
         }
-        const voiceMail = new VoiceMail({ filename: req.file.filename });
-        await voiceMail.save();
+
+        const filename = `${Date.now()}.webm`;
+        const url = await uploadToS3(req.file.buffer, filename);
+
+        const voiceMail = {
+            id: Date.now().toString(),
+            filename: filename,
+            url: url,
+            timestamp: new Date().toISOString()
+        };
+
+        voiceMails.push(voiceMail);
         res.json(voiceMail);
     } catch (error) {
         console.error('Error saving voice mail:', error);
@@ -122,9 +107,8 @@ app.post('/api/voicemails', upload.single('audio'), async (req, res) => {
     }
 });
 
-app.get('/api/voicemails', async (req, res) => {
+app.get('/api/voicemails', (req, res) => {
     try {
-        const voiceMails = await VoiceMail.find().sort({ createdAt: -1 });
         res.json(voiceMails);
     } catch (error) {
         console.error('Error fetching voice mails:', error);
@@ -134,19 +118,17 @@ app.get('/api/voicemails', async (req, res) => {
 
 app.delete('/api/voicemails/:id', async (req, res) => {
     try {
-        const voiceMail = await VoiceMail.findById(req.params.id);
+        const voiceMail = voiceMails.find(vm => vm.id === req.params.id);
+
         if (!voiceMail) {
             return res.status(404).json({ error: 'Voice mail not found' });
         }
 
-        // Delete the file
-        const filePath = path.join(uploadsDir, voiceMail.filename);
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
+        // Delete from S3
+        await deleteFromS3(voiceMail.filename);
 
-        // Delete the database record
-        await VoiceMail.findByIdAndDelete(req.params.id);
+        // Update the voice mails list
+        voiceMails = voiceMails.filter(vm => vm.id !== req.params.id);
         res.json({ message: 'Voice mail deleted successfully' });
     } catch (error) {
         console.error('Error deleting voice mail:', error);
@@ -154,7 +136,6 @@ app.delete('/api/voicemails/:id', async (req, res) => {
     }
 });
 
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on port ${port}`);
-    console.log(`MongoDB URI: ${mongoUri}`);
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
 }); 

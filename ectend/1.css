@@ -165,6 +165,38 @@ button:hover {
   }
 }
 
+.voice-mail-item {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 15px;
+  margin: 10px 0;
+}
+
+.voice-mail-item p {
+  margin: 0 0 10px 0;
+  color: #fff;
+  font-size: 0.9em;
+}
+
+.voice-mail-item audio {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.voice-mail-item .delete-btn {
+  background: #ff4444;
+  color: white;
+  border: none;
+  padding: 5px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.voice-mail-item .delete-btn:hover {
+  background: #ff0000;
+}
+
 /* Responsive for phones */
 @media screen and (max-width: 480px) {
   .profile-card {
