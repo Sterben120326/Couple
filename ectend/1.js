@@ -57,7 +57,9 @@ const noteInput = document.getElementById("noteInput");
 const notesDisplay = document.getElementById("notesDisplay");
 
 // Get the server URL based on environment
-const serverUrl = 'http://localhost:3000';
+const serverUrl = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3000'
+  : '';  // Empty string means use relative URLs in production
 
 async function addNote() {
   const note = noteInput.value.trim();
@@ -109,10 +111,10 @@ async function loadNotes() {
       return;
     }
 
-    notesDisplay.innerHTML = notes.map(n => `
+    notesDisplay.innerHTML = notes.map(note => `
       <div class="note-item">
-        <span>• ${n.content}</span>
-        <button class="delete-btn" onclick="deleteNote('${n._id}')">🗑️</button>
+        <span>• ${note.content}</span>
+        <button class="delete-btn" onclick="deleteNote('${note.id}')">🗑️</button>
       </div>
     `).join('');
   } catch (error) {

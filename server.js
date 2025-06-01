@@ -28,6 +28,12 @@ if (!fs.existsSync(voiceMailsFile)) {
     fs.writeFileSync(voiceMailsFile, '[]');
 }
 
+// File to store notes
+const notesFile = path.join(__dirname, 'notes.json');
+if (!fs.existsSync(notesFile)) {
+    fs.writeFileSync(notesFile, '[]');
+}
+
 // Storage configuration for voice mails
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -76,6 +82,29 @@ function saveVoiceMails(voiceMails) {
     }
 }
 
+// Helper functions for notes
+function getNotes() {
+    try {
+        if (fs.existsSync(notesFile)) {
+            const data = fs.readFileSync(notesFile, 'utf8');
+            return JSON.parse(data);
+        }
+        return [];
+    } catch (error) {
+        console.error('Error reading notes:', error);
+        return [];
+    }
+}
+
+function saveNotes(notes) {
+    try {
+        fs.writeFileSync(notesFile, JSON.stringify(notes, null, 2));
+    } catch (error) {
+        console.error('Error saving notes:', error);
+        throw error;
+    }
+}
+
 // Serve uploaded files
 app.use('/uploads', express.static(uploadsDir));
 
@@ -84,6 +113,53 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Notes endpoints
+app.get('/api/notes', (req, res) => {
+    try {
+        const notes = getNotes();
+        res.json(notes);
+    } catch (error) {
+        console.error('Error fetching notes:', error);
+        res.status(500).json({ error: 'Error fetching notes' });
+    }
+});
+
+app.post('/api/notes', (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content) {
+            return res.status(400).json({ error: 'Note content is required' });
+        }
+
+        const notes = getNotes();
+        const note = {
+            id: Date.now().toString(),
+            content,
+            timestamp: new Date().toISOString()
+        };
+
+        notes.push(note);
+        saveNotes(notes);
+        res.json(note);
+    } catch (error) {
+        console.error('Error saving note:', error);
+        res.status(500).json({ error: 'Error saving note' });
+    }
+});
+
+app.delete('/api/notes/:id', (req, res) => {
+    try {
+        const notes = getNotes();
+        const updatedNotes = notes.filter(note => note.id !== req.params.id);
+        saveNotes(updatedNotes);
+        res.json({ message: 'Note deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting note:', error);
+        res.status(500).json({ error: 'Error deleting note' });
+    }
+});
+
+// Voice mail endpoints
 app.post('/api/voicemails', upload.single('audio'), (req, res) => {
     try {
         if (!req.file) {
