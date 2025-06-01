@@ -59,7 +59,7 @@ const notesDisplay = document.getElementById("notesDisplay");
 // Get the server URL based on environment
 const serverUrl = window.location.hostname === 'localhost' 
   ? 'http://localhost:3000'
-  : '';  // Empty string means use relative URLs in production
+  : window.location.origin;  // Use the full origin URL in production
 
 async function addNote() {
   const note = noteInput.value.trim();

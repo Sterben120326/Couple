@@ -113,10 +113,12 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Notes endpoints
+// Notes endpoints with logging
 app.get('/api/notes', (req, res) => {
+    console.log('GET /api/notes - Fetching notes');
     try {
         const notes = getNotes();
+        console.log(`Found ${notes.length} notes`);
         res.json(notes);
     } catch (error) {
         console.error('Error fetching notes:', error);
@@ -125,9 +127,13 @@ app.get('/api/notes', (req, res) => {
 });
 
 app.post('/api/notes', (req, res) => {
+    console.log('POST /api/notes - Adding new note');
     try {
         const { content } = req.body;
+        console.log('Note content:', content);
+        
         if (!content) {
+            console.log('Error: Note content is missing');
             return res.status(400).json({ error: 'Note content is required' });
         }
 
@@ -140,6 +146,7 @@ app.post('/api/notes', (req, res) => {
 
         notes.push(note);
         saveNotes(notes);
+        console.log('Note saved successfully:', note.id);
         res.json(note);
     } catch (error) {
         console.error('Error saving note:', error);
@@ -148,10 +155,12 @@ app.post('/api/notes', (req, res) => {
 });
 
 app.delete('/api/notes/:id', (req, res) => {
+    console.log(`DELETE /api/notes/${req.params.id} - Deleting note`);
     try {
         const notes = getNotes();
         const updatedNotes = notes.filter(note => note.id !== req.params.id);
         saveNotes(updatedNotes);
+        console.log('Note deleted successfully');
         res.json({ message: 'Note deleted successfully' });
     } catch (error) {
         console.error('Error deleting note:', error);
@@ -230,4 +239,7 @@ app.delete('/api/voicemails/:id', (req, res) => {
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Notes file location:', notesFile);
+    console.log('Voice mails file location:', voiceMailsFile);
 }); 
